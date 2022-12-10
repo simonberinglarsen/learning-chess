@@ -1,11 +1,15 @@
 local display = {
     root = nil,
     images = {},
+    contentWidth = love.graphics.getWidth(),
+    contentHeight = love.graphics.getHeight(),
 }
 
 local entityTypeGroup = 1
 local entityTypeImage = 2
 local entityTypeRect = 3
+local entityTypeCirc = 4
+local entityTypeText = 5
 
 function display.basicProps(x, y, type)
     return {
@@ -13,6 +17,23 @@ function display.basicProps(x, y, type)
         y = y,
         type = type
     }
+end
+
+function display.newCirc(g, x, y, r, s)
+    local circ = display.basicProps(x, y, entityTypeCirc)
+    circ.radius = r
+    circ.segments = s
+    circ.fill = { 1, 1, 1 }
+    display.insert(g, circ)
+    return circ
+end
+
+function display.newText(g, str, x, y)
+    local text = display.basicProps(x, y, entityTypeText)
+    text.str = str
+    text.fill = { 1, 1, 1 }
+    display.insert(g, text)
+    return text
 end
 
 function display.newRect(g, x, y, w, h)
@@ -61,8 +82,12 @@ function display.renderGroup(g)
             display.renderGroup(e)
         elseif e.type == entityTypeRect then
             display.renderRect(e)
+        elseif e.type == entityTypeCirc then
+            display.renderCirc(e)
         elseif e.type == entityTypeImage then
             display.renderImage(e)
+        elseif e.type == entityTypeText then
+            display.renderText(e)
         end
     end
 end
@@ -71,13 +96,24 @@ function display.renderRect(e)
     local color = e.fill
     love.graphics.setColor(color[1], color[2], color[3])
     love.graphics.rectangle("fill", e.x, e.y, e.width, e.height)
+end
 
+function display.renderCirc(e)
+    local color = e.fill
+    love.graphics.setColor(color[1], color[2], color[3])
+    love.graphics.circle("fill", e.x, e.y, e.radius, e.segments)
 end
 
 function display.renderImage(e)
     local color = e.fill
     love.graphics.setColor(color[1], color[2], color[3])
     love.graphics.draw(e.sheet, e.quad, e.x, e.y)
+end
+
+function display.renderText(e)
+    local color = e.fill
+    love.graphics.setColor(color[1], color[2], color[3])
+    love.graphics.print(e.str, e.x, e.y)
 end
 
 function display.insert(g, e)
@@ -128,4 +164,5 @@ function display.groupToString(g, level)
 end
 
 display.root = display.newGroup(nil, "root")
+
 return display
