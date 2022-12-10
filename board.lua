@@ -17,7 +17,9 @@ end
 
 function board:constructor()
     self.piecesView = nil
+    self.pieces = {}
     messagebus:subscribe(self, "mousemove", function(e) self:mousemove(e) end)
+    messagebus:subscribe(self, "mouseleave", function() self:mouseleave() end)
     messagebus:subscribe(self, "mousepressed", function(e) self:mousepressed(e) end)
     messagebus:subscribe(self, "mousereleased", function(e) self:mousereleased(e) end)
 
@@ -46,6 +48,7 @@ function board:newPos(g, fen)
     if self.piecesView then
         display.remove(self.piecesView)
     end
+    self.pieces = {}
     self.piecesView = display.newGroup(g, "piecesview")
     local state = {}
     local row = 0
@@ -59,15 +62,15 @@ function board:newPos(g, fen)
                     column = column + emptySquares
                 else
                     local pieceCode = letterToPieceMap[ch]
-                    local margin = (squareSize - pieceSpriteSize) / 2
                     local white = pieceCode > 6
                     local spriteY = 0
                     if white then spriteY = 1 end
                     local spriteX = (pieceCode - 1) % 6
-                    local piece = display.newImage(self.piecesView, "chess.png", spriteX * pieceSpriteSize,
+                    local piece = display.newImage(self.piecesView, "assets/gfx/chess.png", spriteX * pieceSpriteSize,
                         spriteY * pieceSpriteSize, pieceSpriteSize, pieceSpriteSize)
-                    piece.x = squareSize * column + margin
-                    piece.y = squareSize * row + margin
+                    self.pieces[#self.pieces + 1] = piece
+                    piece.squareIndex = column + row * 8
+                    self:setOriginalPiecePosition(piece)
                     column = column + 1
                 end
             end
@@ -99,21 +102,62 @@ function board:newPos(g, fen)
     stateDescription = stateDescription .. "state.halfMoves = " .. state.halfMoves .. "\n"
     stateDescription = stateDescription .. "state.fullMoves = " .. state.fullMoves .. "\n"
     display.newText(self.piecesView, stateDescription, squareSize * 8.5, squareSize * 1)
-    self.label = display.newText(self.piecesView, "??", squareSize * 8.5, squareSize * 3)
-    self.mousepressLabel = display.newText(self.piecesView, "??", squareSize * 8.5, squareSize * 4)
     return state
 end
 
+function board:setOriginalPiecePosition(piece)
+    local margin = (squareSize - pieceSpriteSize) / 2
+    local column = math.floor(piece.squareIndex % 8)
+    local row = math.floor(piece.squareIndex / 8)
+    piece.x = squareSize * column + margin
+    piece.y = squareSize * row + margin
+end
+
 function board:mousemove(e)
-    self.label.str = e.x .. ", " .. e.y
+    local pieces = self.pieces
+    local outOfBounds = e.x < 0 or e.x > 8 * squareSize or e.y < 0 or e.y > 8 * squareSize
+    for i = 1, #pieces do
+        local piece = pieces[i]
+        if piece.selected then
+            if outOfBounds then
+                piece.selected = false
+                self:setOriginalPiecePosition(piece)
+            else
+                piece.x = e.x - pieceSpriteSize / 2
+                piece.y = e.y - pieceSpriteSize / 2
+                display.toFront(piece)
+            end
+        end
+    end
 end
 
 function board:mousepressed(e)
-    self.mousepressLabel.str = e.x .. ", " .. e.y
+    local row = math.floor(e.y / squareSize)
+    local column = math.floor(e.x / squareSize)
+    local squareIndex = row * 8 + column
+    local pieces = self.pieces
+    for i = 1, #pieces do
+        local piece = pieces[i]
+        if piece.squareIndex == squareIndex then
+            piece.selected = true
+        end
+    end
 end
 
 function board:mousereleased(e)
-    self.mousepressLabel.str = e.x .. ", " .. e.y
+    local pieces = self.pieces
+    for i = 1, #pieces do
+        local piece = pieces[i]
+        if piece.selected then
+            piece.selected = false
+            self:setOriginalPiecePosition(piece)
+        end
+
+    end
+end
+
+function board:mouseleave()
+    self:mousereleased()
 end
 
 return board

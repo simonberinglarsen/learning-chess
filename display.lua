@@ -163,6 +163,13 @@ function display.groupToString(g, level)
     end
 end
 
+function display.toFront(e)
+    if e.parent == nil then return end
+    local g = e.parent
+    display.remove(e)
+    display.insert(g, e)
+end
+
 display.root = display.newGroup(nil, "root")
 
 return display
