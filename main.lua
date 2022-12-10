@@ -31,7 +31,6 @@ end
 function love.mousepressed(x, y, button)
     if button == 1 then
         messagebus:publish("mousepressed", { x = x, y = y })
-        messagebus:publish("soundfx", { name = "move" })
     end
 end
 

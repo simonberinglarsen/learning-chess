@@ -109,8 +109,12 @@ function board:setOriginalPiecePosition(piece)
     local margin = (squareSize - pieceSpriteSize) / 2
     local column = math.floor(piece.squareIndex % 8)
     local row = math.floor(piece.squareIndex / 8)
-    piece.x = squareSize * column + margin
-    piece.y = squareSize * row + margin
+    local newx, newy = squareSize * column + margin, squareSize * row + margin
+    if piece.x ~= newx or piece.y ~= newy then
+        messagebus:publish("soundfx", { name = "move" })
+    end
+    piece.x = newx
+    piece.y = newy
 end
 
 function board:mousemove(e)
