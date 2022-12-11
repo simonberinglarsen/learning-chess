@@ -113,7 +113,6 @@ function Position:genMoves()
                     if i == H1 and q == 'K' and self.wc[2] then
                         table.insert(moves, { j, j + 2 })
                     end
-                    -- print(p, q, i, d, j)
                     -- No friendly captures
                     if isupper(q) then break; end
                     -- Special pawn stuff
@@ -128,7 +127,6 @@ function Position:genMoves()
                     end
                     -- Move it
                     table.insert(moves, { i, j })
-                    -- print(i, j)
                     -- Stop crawlers from sliding
                     if p == 'P' or p == 'N' or p == 'K' then break; end
                     -- No sliding after captures

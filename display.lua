@@ -169,7 +169,6 @@ function display.groupToString(g, level)
             indent = indent .. indentCh
         end
     else
-        print("START")
         level = 0
     end
     local children = g.children
