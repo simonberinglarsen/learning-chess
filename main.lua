@@ -3,8 +3,6 @@ local colors = require('colors')
 local board = require('board')
 local display = require('display')
 local messagebus = require('messagebus')
-local sunfish = require('sunfish')
-
 
 function love.load()
     audio.loadSound("move", "assets/audio/move1.mp3", "static")
