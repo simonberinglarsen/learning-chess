@@ -1,4 +1,5 @@
 local messagebus = require('messagebus')
+local sunfish = require('sunfish')
 local display = require('display')
 local colors = require('colors')
 local board = {}
@@ -24,7 +25,6 @@ function board:constructor(g)
     messagebus:subscribe(self, "mouseleave", function() self:mouseleave() end)
     messagebus:subscribe(self, "mousepressed", function(e) self:mousepressed(e) end)
     messagebus:subscribe(self, "mousereleased", function(e) self:mousereleased(e) end)
-    messagebus:subscribe(self, "printboard", function(e) self:printboard(e) end)
 
     board:newChessBoard(display.newGroup(self.view, "board"))
 end
@@ -132,7 +132,8 @@ function board:getMove(piece)
     local toCol = math.floor(piece.x / squareSize) + 1
     local toRow = math.floor(piece.y / squareSize) + 1
     local to = columnMap:sub(toCol, toCol) .. rowMap:sub(toRow, toRow)
-    messagebus:publish("chessmove", { from = from, to = to })
+    sunfish:chessmove({ from = from, to = to })
+    self:newPos(sunfish:getFen())
 end
 
 function board:selectPiece(piece, selected)
@@ -193,10 +194,6 @@ end
 
 function board:mouseleave()
     self:mousereleased()
-end
-
-function board:printboard(options)
-    self:newPos(options.fen)
 end
 
 return board

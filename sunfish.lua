@@ -345,7 +345,15 @@ local function findMoveInList(t, k)
     return false
 end
 
-function sunfish:printboard(pos)
+local function squareToText(square)
+    local rank = 10 - math.floor(square / 10)
+    if rank < 1 or rank > 8 then return "-" end
+    local file = square % 10
+    return string.char(96 + file) .. rank
+end
+
+function sunfish:getFen()
+    local pos = self.pos
     local board = pos.board
     board = board:gsub("\n", "/"):gsub(" ", ""):sub(3, #board - 2)
         :gsub("%.%.%.%.%.%.%.%.", "8")
@@ -357,7 +365,10 @@ function sunfish:printboard(pos)
         :gsub("%.%.", "2")
         :gsub("%.", "1")
     local activeColor = self.isWhiteActive and "w" or "b"
-    messagebus:publish("printboard", { fen = board .. " " .. activeColor .. " KQkq - 0 1" })
+    local castleConfig = (pos.wc[1] and "K" or "") .. (pos.wc[2] and "Q" or "")
+        .. (pos.bc[1] and "k" or "") .. (pos.bc[2] and "q" or "")
+    local enPassant = squareToText(pos.ep)
+    return board .. " " .. activeColor .. " " .. castleConfig .. " " .. enPassant .. " 0 1"
 end
 
 function sunfish:emptySquares(board)
@@ -391,8 +402,7 @@ end
 function sunfish:chessmove(e)
     local isWhitePieceMoved = self:isWhitePiece(e.from)
     if isWhitePieceMoved ~= self.isWhiteActive then
-        self:printboard(self.pos)
-        return
+        return false
     end
     if not isWhitePieceMoved then
         e = self:reverseMove(e)
@@ -404,10 +414,9 @@ function sunfish:chessmove(e)
         self.isWhiteActive = not self.isWhiteActive
     end
     if not isWhitePieceMoved then self.pos = self.pos:rotate() end
-    self:printboard(self.pos)
+    return true
 end
 
 sunfish.pos = Position.new(initial, 0, { true, true }, { true, true }, 0, 0)
-messagebus:subscribe(sunfish, "chessmove", function(e) sunfish:chessmove(e) end)
 
 return sunfish
