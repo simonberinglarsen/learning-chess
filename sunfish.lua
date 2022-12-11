@@ -73,7 +73,7 @@ end
 
 local Position = {}
 
-function Position.new(board, wc, bc, ep, kp)
+function Position:new(board, wc, bc, ep, kp)
     --[[  A state of a chess game
       board -- a 120 char representation of the board
       wc -- the castling rights
@@ -81,14 +81,15 @@ function Position.new(board, wc, bc, ep, kp)
       ep - the en passant square
       kp - the king passant square
    ]] --
-    local self = {}
-    self.board = board
-    self.wc = wc
-    self.bc = bc
-    self.ep = ep
-    self.kp = kp
-    for k, v in pairs(Position) do self[k] = v end
-    return self
+    local o = {}
+    setmetatable(o, self)
+    self.__index = self
+    o.board = board
+    o.wc = wc
+    o.bc = bc
+    o.ep = ep
+    o.kp = kp
+    return o
 end
 
 function Position:genMoves()
@@ -163,7 +164,7 @@ function Position:genLegalMoves()
 end
 
 function Position:rotate()
-    return self.new(swapcase(self.board:reverse()), self.bc, self.wc, 119 - self.ep, 119 - self.kp)
+    return Position:new(swapcase(self.board:reverse()), self.bc, self.wc, 119 - self.ep, 119 - self.kp)
 end
 
 function Position:move(move)
@@ -207,7 +208,7 @@ function Position:move(move)
         end
     end
     -- We rotate the returned position, so it's ready for the next player
-    return self.new(board, wc, bc, ep, kp):rotate()
+    return Position:new(board, wc, bc, ep, kp):rotate()
 end
 
 function Position:takesKing(move)
@@ -317,6 +318,6 @@ function sunfish:chessmove(e)
     return true
 end
 
-sunfish.pos = Position.new(initial, { true, true }, { true, true }, 0, 0)
+sunfish.pos = Position:new(initial, { true, true }, { true, true }, 0, 0)
 
 return sunfish
