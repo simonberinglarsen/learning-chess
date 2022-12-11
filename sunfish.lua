@@ -297,10 +297,10 @@ function Position:move(move)
 end
 
 function Position:value(move)
-    local i, j = move[1], move[2]
-    local p, q = self.board:sub(i + 1, i + 1), self.board:sub(j + 1, j + 1)
+    local j = move[2]
+    local q = self.board:sub(j + 1, j + 1)
     -- Actual move
-    local score = pst[p][j + 1] - pst[p][i + 1]
+    local score = 0
     -- Capture
     if islower(q) then
         score = score + pst[q:upper()][j + 1]
@@ -308,20 +308,6 @@ function Position:value(move)
     -- Castling check detection
     if math.abs(j - self.kp) < 2 then
         score = score + pst['K'][j + 1]
-    end
-    -- Castling
-    if p == 'K' and math.abs(i - j) == 2 then
-        score = score + pst['R'][math.floor((i + j) / 2) + 1]
-        score = score - pst['R'][j < i and A1 + 1 or H1 + 1]
-    end
-    -- Special pawn stuff
-    if p == 'P' then
-        if A8 <= j and j <= H8 then
-            score = score + pst['Q'][j + 1] - pst['P'][j + 1]
-        end
-        if j == self.ep then
-            score = score + pst['P'][j + S + 1]
-        end
     end
     return score
 end
@@ -367,8 +353,11 @@ function sunfish:getFen()
     local activeColor = self.isWhiteActive and "w" or "b"
     local castleConfig = (pos.wc[1] and "K" or "") .. (pos.wc[2] and "Q" or "")
         .. (pos.bc[1] and "k" or "") .. (pos.bc[2] and "q" or "")
+    castleConfig = castleConfig == "" and "-" or castleConfig
     local enPassant = squareToText(pos.ep)
-    return board .. " " .. activeColor .. " " .. castleConfig .. " " .. enPassant .. " 0 1"
+    local fen = board .. " " .. activeColor .. " " .. castleConfig .. " " .. enPassant .. " 0 1"
+    print(fen)
+    return fen
 end
 
 function sunfish:emptySquares(board)
