@@ -11,25 +11,34 @@ local entityTypeRect = 3
 local entityTypeCirc = 4
 local entityTypeText = 5
 
-function display.basicProps(x, y, type)
+function display.basicProps(x, y, w, h, type)
     return {
         x = x,
         y = y,
-        type = type
+        w = w,
+        h = h,
+        type = type,
+        isVisible = true,
+        anchorX = 0.5,
+        anchorY = 0.5,
+        scaleX = 1,
+        scaleY = 1,
     }
 end
 
 function display.newCirc(g, x, y, r, s)
-    local circ = display.basicProps(x, y, entityTypeCirc)
+    local circ = display.basicProps(x, y, r, r, entityTypeCirc)
     circ.radius = r
     circ.segments = s
     circ.fill = { 1, 1, 1 }
+    circ.anchorX = 0
+    circ.anchorY = 0
     display.insert(g, circ)
     return circ
 end
 
 function display.newText(g, str, x, y)
-    local text = display.basicProps(x, y, entityTypeText)
+    local text = display.basicProps(x, y, nil, nil, entityTypeText)
     text.str = str
     text.fill = { 1, 1, 1 }
     display.insert(g, text)
@@ -37,9 +46,7 @@ function display.newText(g, str, x, y)
 end
 
 function display.newRect(g, x, y, w, h)
-    local rect = display.basicProps(x, y, entityTypeRect)
-    rect.width = w
-    rect.height = h
+    local rect = display.basicProps(x, y, w, h, entityTypeRect)
     rect.fill = { 1, 1, 1 }
     display.insert(g, rect)
     return rect
@@ -50,18 +57,16 @@ function display.newImage(g, filename, x, y, w, h)
         display.images[filename] = love.graphics.newImage(filename)
     end
     local sheet = display.images[filename]
-    local img = display.basicProps(0, 0, entityTypeImage)
+    local img = display.basicProps(0, 0, w, h, entityTypeImage)
     img.quad = love.graphics.newQuad(x, y, w, h, sheet)
     img.sheet = sheet
-    img.width = w
-    img.height = h
     img.fill = { 1, 1, 1 }
     display.insert(g, img)
     return img
 end
 
 function display.newGroup(g, name)
-    local group = display.basicProps(0, 0, entityTypeGroup)
+    local group = display.basicProps(0, 0, nil, nil, entityTypeGroup)
     group.children = {}
     group.name = name
     if g ~= nil then
@@ -78,42 +83,60 @@ function display.renderGroup(g)
     local children = g.children
     for i = 1, #children do
         local e = children[i]
-        if e.type == entityTypeGroup then
-            display.renderGroup(e)
-        elseif e.type == entityTypeRect then
-            display.renderRect(e)
-        elseif e.type == entityTypeCirc then
-            display.renderCirc(e)
-        elseif e.type == entityTypeImage then
-            display.renderImage(e)
-        elseif e.type == entityTypeText then
-            display.renderText(e)
+        if e.isVisible then
+            if e.type == entityTypeGroup then
+                display.renderGroup(e)
+            elseif e.type == entityTypeRect then
+                display.renderRect(e)
+            elseif e.type == entityTypeCirc then
+                display.renderCirc(e)
+            elseif e.type == entityTypeImage then
+                display.renderImage(e)
+            elseif e.type == entityTypeText then
+                display.renderText(e)
+            end
         end
     end
 end
 
+function display.getAnchorPos(e)
+    if e.w and e.h then
+        return { x = e.x - e.w * e.scaleX * e.anchorX, y = e.y - e.h * e.scaleY * e.anchorY }
+    else
+        return { x = e.x, y = e.y }
+    end
+end
+
+function display.setColor(color)
+    love.graphics.setColor(color[1], color[2], color[3], color[4])
+end
+
 function display.renderRect(e)
     local color = e.fill
-    love.graphics.setColor(color[1], color[2], color[3])
-    love.graphics.rectangle("fill", e.x, e.y, e.width, e.height)
+    display.setColor(color)
+    local pos = display.getAnchorPos(e)
+    love.graphics.rectangle("fill", pos.x, pos.y, e.w, e.h)
 end
 
 function display.renderCirc(e)
     local color = e.fill
-    love.graphics.setColor(color[1], color[2], color[3])
-    love.graphics.circle("fill", e.x, e.y, e.radius, e.segments)
+    display.setColor(color)
+    local pos = display.getAnchorPos(e)
+    love.graphics.circle("fill", pos.x, pos.y, e.w, e.segments)
 end
 
 function display.renderImage(e)
     local color = e.fill
-    love.graphics.setColor(color[1], color[2], color[3])
-    love.graphics.draw(e.sheet, e.quad, e.x, e.y)
+    display.setColor(color)
+    local pos = display.getAnchorPos(e)
+    love.graphics.draw(e.sheet, e.quad, pos.x, pos.y, 0, e.scaleX, e.scaleY)
 end
 
 function display.renderText(e)
     local color = e.fill
-    love.graphics.setColor(color[1], color[2], color[3])
-    love.graphics.print(e.str, e.x, e.y)
+    display.setColor(color)
+    local pos = display.getAnchorPos(e)
+    love.graphics.print(e.str, pos.x, pos.y)
 end
 
 function display.insert(g, e)

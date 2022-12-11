@@ -7,22 +7,26 @@ local squareSize = 70
 local pieceSpriteSize = 60
 local letterToPieceMap = { r = 3, n = 5, b = 4, q = 2, k = 1, p = 6, R = 9, N = 11, B = 10, Q = 8, K = 7, P = 12 }
 
-function board:new()
+function board:new(g)
     local o = {}
     setmetatable(o, self)
     self.__index = self
-    o:constructor()
+    o:constructor(g)
     return o
 end
 
-function board:constructor()
+function board:constructor(g)
+    self.view = display.newGroup()
+    display.insert(g, self.view)
     self.piecesView = nil
     self.pieces = {}
     messagebus:subscribe(self, "mousemove", function(e) self:mousemove(e) end)
     messagebus:subscribe(self, "mouseleave", function() self:mouseleave() end)
     messagebus:subscribe(self, "mousepressed", function(e) self:mousepressed(e) end)
     messagebus:subscribe(self, "mousereleased", function(e) self:mousereleased(e) end)
+    messagebus:subscribe(self, "printboard", function(e) self:printboard(e) end)
 
+    board:newChessBoard(display.newGroup(self.view, "board"))
 end
 
 function board:destructor()
@@ -39,19 +43,25 @@ function board:newChessBoard(g)
         for y = 0, 7 do
             local c1 = c[(x + y) % 2 + 1]
             local r = display.newRect(g, x * squareSize, y * squareSize, squareSize, squareSize)
+            r.anchorX = 0
+            r.anchorY = 0
             r.fill = { c1[1], c1[2], c1[3] }
         end
     end
 end
 
-function board:newPos(g, fen)
+function board:newPos(fen)
     if self.piecesView then
         display.remove(self.piecesView)
     end
     self.pieces = {}
-    self.piecesView = display.newGroup(g, "piecesview")
+    self.piecesView = display.newGroup(self.view, "piecesview")
     local state = {}
     local row = 0
+    local circ = display.newCirc(self.piecesView, 0, 0, pieceSpriteSize)
+    circ.fill = { 0, 0, 0, 0.25 }
+    circ.isVisible = false
+    self.selectionCirc = circ
     for fenRow in string.gmatch(fen, "([^/ ]+)") do
         if row < 8 then
             local column = 0
@@ -106,15 +116,34 @@ function board:newPos(g, fen)
 end
 
 function board:setOriginalPiecePosition(piece)
-    local margin = (squareSize - pieceSpriteSize) / 2
     local column = math.floor(piece.squareIndex % 8)
     local row = math.floor(piece.squareIndex / 8)
-    local newx, newy = squareSize * column + margin, squareSize * row + margin
-    if piece.x ~= newx or piece.y ~= newy then
-        messagebus:publish("soundfx", { name = "move" })
-    end
+    local newx, newy = squareSize * (column + 0.5), squareSize * (row + 0.5)
     piece.x = newx
     piece.y = newy
+end
+
+function board:getMove(piece)
+    local columnMap = "abcdefgh"
+    local rowMap = "87654321"
+    local fromCol = math.floor(piece.squareIndex % 8) + 1
+    local fromRow = math.floor(piece.squareIndex / 8) + 1
+    local from = columnMap:sub(fromCol, fromCol) .. rowMap:sub(fromRow, fromRow)
+    local toCol = math.floor(piece.x / squareSize) + 1
+    local toRow = math.floor(piece.y / squareSize) + 1
+    local to = columnMap:sub(toCol, toCol) .. rowMap:sub(toRow, toRow)
+    messagebus:publish("chessmove", { from = from, to = to })
+end
+
+function board:selectPiece(piece, selected)
+    piece.selected = selected
+    self.selectionCirc.isVisible = selected
+    self:updateSelectionPos(piece)
+end
+
+function board:updateSelectionPos(piece)
+    self.selectionCirc.x = (math.floor(piece.x / squareSize) + 0.5) * squareSize
+    self.selectionCirc.y = (math.floor(piece.y / squareSize) + 0.5) * squareSize
 end
 
 function board:mousemove(e)
@@ -124,12 +153,15 @@ function board:mousemove(e)
         local piece = pieces[i]
         if piece.selected then
             if outOfBounds then
-                piece.selected = false
+                self:selectPiece(piece, false)
                 self:setOriginalPiecePosition(piece)
             else
-                piece.x = e.x - pieceSpriteSize / 2
-                piece.y = e.y - pieceSpriteSize / 2
+                piece.x = e.x
+                piece.y = e.y
+                piece.scaleX = 1.5
+                piece.scaleY = 1.5
                 display.toFront(piece)
+                self:updateSelectionPos(piece)
             end
         end
     end
@@ -143,7 +175,7 @@ function board:mousepressed(e)
     for i = 1, #pieces do
         local piece = pieces[i]
         if piece.squareIndex == squareIndex then
-            piece.selected = true
+            self:selectPiece(piece, true)
         end
     end
 end
@@ -153,15 +185,18 @@ function board:mousereleased(e)
     for i = 1, #pieces do
         local piece = pieces[i]
         if piece.selected then
-            piece.selected = false
-            self:setOriginalPiecePosition(piece)
+            self:selectPiece(piece, false)
+            self:getMove(piece)
         end
-
     end
 end
 
 function board:mouseleave()
     self:mousereleased()
+end
+
+function board:printboard(options)
+    self:newPos(options.fen)
 end
 
 return board
