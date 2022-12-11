@@ -3,10 +3,6 @@ local messagebus = require('messagebus')
 local sunfish = {
     isWhiteActive = true
 }
--- Mate value must be greater than 8*queen + 2*(rook+knight+bishop)
--- King value is set to twice this value such that if the opponent is
--- 8 queens up, but we got the king, we still exceed MATE_VALUE.
-local MATE_VALUE = 30000
 
 -- Our board is represented as a 120 character string. The padding allows for
 -- fast detection of moves that don't stay within the board.
@@ -154,10 +150,9 @@ end
 
 local Position = {}
 
-function Position.new(board, score, wc, bc, ep, kp)
+function Position.new(board, wc, bc, ep, kp)
     --[[  A state of a chess game
       board -- a 120 char representation of the board
-      score -- the board evaluation
       wc -- the castling rights
       bc -- the opponent castling rights
       ep - the en passant square
@@ -165,7 +160,6 @@ function Position.new(board, score, wc, bc, ep, kp)
    ]] --
     local self = {}
     self.board = board
-    self.score = score
     self.wc = wc
     self.bc = bc
     self.ep = ep
@@ -226,7 +220,7 @@ function Position:isLegal(move)
     local pos = self:move(move)
     local moves = pos:genMoves()
     for i = 1, #moves do
-        if math.abs(pos:value(moves[i])) >= MATE_VALUE then
+        if pos:takesKing(moves[i]) then
             return false
         end
     end
@@ -246,9 +240,7 @@ function Position:genLegalMoves()
 end
 
 function Position:rotate()
-    return self.new(
-        swapcase(self.board:reverse()), -self.score,
-        self.bc, self.wc, 119 - self.ep, 119 - self.kp)
+    return self.new(swapcase(self.board:reverse()), self.bc, self.wc, 119 - self.ep, 119 - self.kp)
 end
 
 function Position:move(move)
@@ -262,7 +254,6 @@ function Position:move(move)
     -- Copy variables and reset ep and kp
     local board = self.board
     local wc, bc, ep, kp = self.wc, self.bc, 0, 0
-    local score = self.score + self:value(move)
     -- Actual move
     board = put(board, j + 1, board:sub(i + 1, i + 1))
     board = put(board, i + 1, '.')
@@ -293,23 +284,20 @@ function Position:move(move)
         end
     end
     -- We rotate the returned position, so it's ready for the next player
-    return self.new(board, score, wc, bc, ep, kp):rotate()
+    return self.new(board, wc, bc, ep, kp):rotate()
 end
 
-function Position:value(move)
+function Position:takesKing(move)
     local j = move[2]
     local q = self.board:sub(j + 1, j + 1)
-    -- Actual move
-    local score = 0
-    -- Capture
-    if islower(q) then
-        score = score + pst[q:upper()][j + 1]
+    if q == 'k' then
+        return true
     end
     -- Castling check detection
     if math.abs(j - self.kp) < 2 then
-        score = score + pst['K'][j + 1]
+        return true
     end
-    return score
+    return false
 end
 
 local function parse(c)
@@ -406,6 +394,6 @@ function sunfish:chessmove(e)
     return true
 end
 
-sunfish.pos = Position.new(initial, 0, { true, true }, { true, true }, 0, 0)
+sunfish.pos = Position.new(initial, { true, true }, { true, true }, 0, 0)
 
 return sunfish
