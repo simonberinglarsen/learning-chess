@@ -7,7 +7,6 @@ local board = {}
 
 local squareSize = 70
 local pieceSpriteSize = 60
-local letterToPieceMap = { r = 3, n = 5, b = 4, q = 2, k = 1, p = 6, R = 9, N = 11, B = 10, Q = 8, K = 7, P = 12 }
 
 function board:new(g)
     local o = {}
@@ -63,6 +62,7 @@ function board:newChessBoard()
 end
 
 function board:newPos(fen)
+    local letterToPieceMap = { r = 3, n = 5, b = 4, q = 2, k = 1, p = 6, R = 9, N = 11, B = 10, Q = 8, K = 7, P = 12 }
     if self.piecesView then
         display.remove(self.piecesView)
     end
@@ -133,10 +133,6 @@ function board:setOriginalPiecePosition(piece)
     piece.y = squareSize * (8.5 - s.rank)
 end
 
-function board:getSquareName(file, rank)
-    return string.char(96 + file) .. rank
-end
-
 function board:getMove(piece)
     local from = squares:getByIndex(piece.squareIndex).name
     local to = squares:getByIndex(math.floor(piece.x / squareSize) + math.floor(piece.y / squareSize) * 8 + 1).name
@@ -144,23 +140,35 @@ function board:getMove(piece)
     self:newPos(sunfish:getFen())
 end
 
+function board:getTargetSquares(piece)
+    local sn = squares:getByIndex(piece.squareIndex).name
+    local moves = sunfish:legalMovesForPiece(sn)
+    local squareNames = {}
+    for i = 1, #moves do
+        squareNames[#squareNames + 1] = sunfish:squareIndexToName(moves[i][2])
+    end
+    return squareNames
+
+end
+
+function board:getSquareRect(squareName)
+    local children = self.squareView.children
+    for j = 1, #children do
+        local child = children[j]
+        if child.tag == squareName then return child end
+    end
+    return nil
+end
+
 function board:selectPiece(piece, selected)
     piece.selected = selected
     self.selectionCirc.isVisible = selected
     self:updateSelectionPos(piece)
     if selected then
-        -- show possible moves
-        local children = self.squareView.children
-        local sn = squares:getByIndex(piece.squareIndex).name
-        local moves = sunfish:legalMovesForPiece(sn)
-        for i = 1, #moves do
-            local move = sunfish:squareToText(moves[i][2])
-            for j = 1, #children do
-                local child = children[j]
-                if child.tag == move then
-                    child.isVisible = true
-                end
-            end
+        local squareNames = self:getTargetSquares(piece)
+        for i = 1, #squareNames do
+            local rect = self:getSquareRect(squareNames[i])
+            rect.isVisible = true
         end
     end
 end

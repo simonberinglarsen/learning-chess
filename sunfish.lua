@@ -241,7 +241,7 @@ local function findMoveInList(t, k)
     return false
 end
 
-function sunfish:squareToText(square)
+function sunfish:squareIndexToName(square)
     local rank = 10 - math.floor(square / 10)
     if rank < 1 or rank > 8 then return "-" end
     local file = square % 10
@@ -264,7 +264,7 @@ function sunfish:getFen()
     local castleConfig = (pos.wc[1] and "K" or "") .. (pos.wc[2] and "Q" or "")
         .. (pos.bc[1] and "k" or "") .. (pos.bc[2] and "q" or "")
     castleConfig = castleConfig == "" and "-" or castleConfig
-    local enPassant = self:squareToText(pos.ep)
+    local enPassant = self:squareIndexToName(pos.ep)
     local fen = board .. " " .. activeColor .. " " .. castleConfig .. " " .. enPassant .. " 0 1"
     print(fen)
     return fen
@@ -302,9 +302,9 @@ function sunfish:legalMovesForPiece(from)
     local square = parse(from)
     local allMoves = self.pos:genLegalMoves()
     local pieceMoves = {}
-    for i=1,#allMoves do
+    for i = 1, #allMoves do
         local move = allMoves[i]
-        if move[1] == square then pieceMoves[#pieceMoves+1] = move end
+        if move[1] == square then pieceMoves[#pieceMoves + 1] = move end
     end
     return pieceMoves
 end
