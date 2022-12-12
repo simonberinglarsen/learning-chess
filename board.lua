@@ -80,20 +80,20 @@ end
 function board:newStateFromFen(fen)
     local state = {}
     local line = 0
-    for fenRow in string.gmatch(fen, "([^/ ]+)") do
+    for fenWord in string.gmatch(fen, "([^/ ]+)") do
         if line < 8 then
-            self:addPiecesFromFenRow(fenRow, line)
+            self:addPiecesFromFenWord(fenWord, line)
         elseif line == 8 then
-            state.activeColor = fenRow
-            self:newActiveColorIndicator(fenRow)
+            state.activeColor = fenWord
+            self:newActiveColorIndicator(fenWord)
         elseif line == 9 then
-            state.castling = fenRow
+            state.castling = fenWord
         elseif line == 10 then
-            state.enPassant = fenRow
+            state.enPassant = fenWord
         elseif line == 11 then
-            state.halfMoves = fenRow
+            state.halfMoves = fenWord
         elseif line == 12 then
-            state.fullMoves = fenRow
+            state.fullMoves = fenWord
         end
 
         line = line + 1
@@ -101,9 +101,9 @@ function board:newStateFromFen(fen)
     return state
 end
 
-function board:newActiveColorIndicator(fenRow)
+function board:newActiveColorIndicator(fenWord)
     local c = display.newCirc(self.piecesView, squareSize * 8.5, squareSize / 2, pieceSpriteSize / 4)
-    if fenRow == "w" then
+    if fenWord == "w" then
         c.fill = colors.lightSquare
         c.y = c.y + squareSize * 7
     else
@@ -111,10 +111,10 @@ function board:newActiveColorIndicator(fenRow)
     end
 end
 
-function board:addPiecesFromFenRow(fenRow, rank)
+function board:addPiecesFromFenWord(fenWord, rank)
     local file = 0
-    for fenRowIndex = 1, #fenRow do
-        local ch = fenRow:sub(fenRowIndex, fenRowIndex)
+    for fenWordIndex = 1, #fenWord do
+        local ch = fenWord:sub(fenWordIndex, fenWordIndex)
         local emptySquares = tonumber(ch, 10)
         if emptySquares then
             file = file + emptySquares
