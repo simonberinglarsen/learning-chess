@@ -1,3 +1,4 @@
+local squares = require('squares')
 local messagebus = require('messagebus')
 local sunfish = require('sunfish')
 local display = require('display')
@@ -20,13 +21,14 @@ function board:constructor(g)
     self.view = display.newGroup()
     display.insert(g, self.view)
     self.piecesView = nil
+    self.squareView = display.newGroup(self.view, "squares")
     self.pieces = {}
     messagebus:subscribe(self, "mousemove", function(e) self:mousemove(e) end)
     messagebus:subscribe(self, "mouseleave", function() self:mouseleave() end)
     messagebus:subscribe(self, "mousepressed", function(e) self:mousepressed(e) end)
     messagebus:subscribe(self, "mousereleased", function(e) self:mousereleased(e) end)
 
-    board:newChessBoard(display.newGroup(self.view, "board"))
+    self:newChessBoard()
 end
 
 function board:destructor()
@@ -37,17 +39,27 @@ function board:destructor()
     messagebus.unsubscribe(self);
 end
 
-function board:newChessBoard(g)
-    local c = { colors.lightSquare, colors.darkSquare }
-    for x = 0, 7 do
-        for y = 0, 7 do
-            local c1 = c[(x + y) % 2 + 1]
-            local r = display.newRect(g, x * squareSize, y * squareSize, squareSize, squareSize)
-            r.anchorX = 0
-            r.anchorY = 0
-            r.fill = { c1[1], c1[2], c1[3] }
-        end
+function board:newChessBoard()
+    local g = self.squareView
+    local c = { colors.lightSquare, colors.darkSquare, colors.darkerSquare }
+    local allSquares = squares:getAll()
+    for i = 1, #allSquares do
+        local s = allSquares[i]
+        local x, y = s.file - 1, 8 - s.rank
+        local c1 = c[(x + y) % 2 + 1]
+
+        local r = display.newRect(g, x * squareSize, y * squareSize, squareSize, squareSize)
+        r.anchorX = 0
+        r.anchorY = 0
+        r.fill = { c1[1], c1[2], c1[3] }
+
+        local circ = display.newCirc(g, (x + 0.5) * squareSize, (y + 0.5) * squareSize, squareSize / 6)
+        c1 = c[3]
+        circ.fill = { c1[1], c1[2], c1[3], 0.75 }
+        circ.isVisible = false
+        circ.tag = s.name
     end
+
 end
 
 function board:newPos(fen)
@@ -57,13 +69,13 @@ function board:newPos(fen)
     self.pieces = {}
     self.piecesView = display.newGroup(self.view, "piecesview")
     local state = {}
-    local row = 0
+    local line = 0
     local circ = display.newCirc(self.piecesView, 0, 0, pieceSpriteSize)
     circ.fill = { 0, 0, 0, 0.25 }
     circ.isVisible = false
     self.selectionCirc = circ
     for fenRow in string.gmatch(fen, "([^/ ]+)") do
-        if row < 8 then
+        if line < 8 then
             local column = 0
             for fenRowIndex = 1, #fenRow do
                 local ch = fenRow:sub(fenRowIndex, fenRowIndex)
@@ -79,12 +91,12 @@ function board:newPos(fen)
                     local piece = display.newImage(self.piecesView, "assets/gfx/chess.png", spriteX * pieceSpriteSize,
                         spriteY * pieceSpriteSize, pieceSpriteSize, pieceSpriteSize)
                     self.pieces[#self.pieces + 1] = piece
-                    piece.squareIndex = column + row * 8
+                    piece.squareIndex = column + line * 8 + 1
                     self:setOriginalPiecePosition(piece)
                     column = column + 1
                 end
             end
-        elseif row == 8 then
+        elseif line == 8 then
             state.activeColor = fenRow
             local c = display.newCirc(self.piecesView, squareSize * 8.5, squareSize / 2, pieceSpriteSize / 4)
             if fenRow == "w" then
@@ -93,17 +105,17 @@ function board:newPos(fen)
             else
                 c.fill = colors.darkSquare
             end
-        elseif row == 9 then
+        elseif line == 9 then
             state.castling = fenRow
-        elseif row == 10 then
+        elseif line == 10 then
             state.enPassant = fenRow
-        elseif row == 11 then
+        elseif line == 11 then
             state.halfMoves = fenRow
-        elseif row == 12 then
+        elseif line == 12 then
             state.fullMoves = fenRow
         end
 
-        row = row + 1
+        line = line + 1
     end
     local stateDescription = ""
     stateDescription = stateDescription .. "state.activeColor = " .. state.activeColor .. "\n"
@@ -116,22 +128,18 @@ function board:newPos(fen)
 end
 
 function board:setOriginalPiecePosition(piece)
-    local column = math.floor(piece.squareIndex % 8)
-    local row = math.floor(piece.squareIndex / 8)
-    local newx, newy = squareSize * (column + 0.5), squareSize * (row + 0.5)
-    piece.x = newx
-    piece.y = newy
+    local s = squares:getByIndex(piece.squareIndex)
+    piece.x = squareSize * (s.file - 0.5)
+    piece.y = squareSize * (8.5 - s.rank)
+end
+
+function board:getSquareName(file, rank)
+    return string.char(96 + file) .. rank
 end
 
 function board:getMove(piece)
-    local columnMap = "abcdefgh"
-    local rowMap = "87654321"
-    local fromCol = math.floor(piece.squareIndex % 8) + 1
-    local fromRow = math.floor(piece.squareIndex / 8) + 1
-    local from = columnMap:sub(fromCol, fromCol) .. rowMap:sub(fromRow, fromRow)
-    local toCol = math.floor(piece.x / squareSize) + 1
-    local toRow = math.floor(piece.y / squareSize) + 1
-    local to = columnMap:sub(toCol, toCol) .. rowMap:sub(toRow, toRow)
+    local from = squares:getByIndex(piece.squareIndex).name
+    local to = squares:getByIndex(math.floor(piece.x / squareSize) + math.floor(piece.y / squareSize) * 8 + 1).name
     sunfish:chessmove({ from = from, to = to })
     self:newPos(sunfish:getFen())
 end
@@ -140,6 +148,21 @@ function board:selectPiece(piece, selected)
     piece.selected = selected
     self.selectionCirc.isVisible = selected
     self:updateSelectionPos(piece)
+    if selected then
+        -- show possible moves
+        local children = self.squareView.children
+        local sn = squares:getByIndex(piece.squareIndex).name
+        local moves = sunfish:legalMovesForPiece(sn)
+        for i = 1, #moves do
+            local move = sunfish:squareToText(moves[i][2])
+            for j = 1, #children do
+                local child = children[j]
+                if child.tag == move then
+                    child.isVisible = true
+                end
+            end
+        end
+    end
 end
 
 function board:updateSelectionPos(piece)
@@ -169,9 +192,9 @@ function board:mousemove(e)
 end
 
 function board:mousepressed(e)
-    local row = math.floor(e.y / squareSize)
-    local column = math.floor(e.x / squareSize)
-    local squareIndex = row * 8 + column
+    local rank = math.floor(e.y / squareSize)
+    local file = math.floor(e.x / squareSize)
+    local squareIndex = rank * 8 + file + 1
     local pieces = self.pieces
     for i = 1, #pieces do
         local piece = pieces[i]
@@ -183,6 +206,13 @@ end
 
 function board:mousereleased(e)
     local pieces = self.pieces
+    local children = self.squareView.children
+    for j = 1, #children do
+        local child = children[j]
+        if child.tag ~= nil then
+            child.isVisible = false
+        end
+    end
     for i = 1, #pieces do
         local piece = pieces[i]
         if piece.selected then
