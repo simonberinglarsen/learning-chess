@@ -17,7 +17,7 @@ function love.load()
     local board = board:new(display.root)
     local col = colors.background
     love.graphics.setBackgroundColor(col[1], col[2], col[3], 1)
-    board:newPos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    board:setPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
 end
 
