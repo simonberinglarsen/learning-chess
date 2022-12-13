@@ -37,11 +37,11 @@ local directions = {
 -------------------------------------------------------------------------------
 -- Chess logic
 -------------------------------------------------------------------------------
+local special = '. \n'
+
 local function isspace(s)
     return s == ' ' or s == '\n'
 end
-
-local special = '. \n'
 
 local function isupper(s)
     if special:find(s) then return false end
@@ -53,11 +53,15 @@ local function islower(s)
     return s:lower() == s
 end
 
+local function charAt(str, i)
+    return str:sub(i, i)
+end
+
 -- super inefficient
 local function swapcase(s)
     local s2 = ''
     for i = 1, #s do
-        local c = s:sub(i, i)
+        local c = charAt(s, i)
         if islower(c) then
             s2 = s2 .. c:upper()
         else
@@ -88,47 +92,52 @@ function Position:new(board, wc, bc, ep, kp)
     return o
 end
 
+function Position:addMovesForPiece(p, from, moves)
+    for _, d in ipairs(directions[p]) do
+        local to = from
+        while true do
+            to = to + d
+            local q = charAt(self.board, to + 1)
+            -- Stay inside the board
+            if isspace(charAt(self.board, to + 1)) then break end
+            -- Castling
+            if from == A1 and q == 'K' and self.wc[1] then
+                table.insert(moves, { to, to - 2 })
+            end
+            if from == H1 and q == 'K' and self.wc[2] then
+                table.insert(moves, { to, to + 2 })
+            end
+            -- No friendly captures
+            if isupper(q) then break end
+            -- Special pawn stuff
+            if p == 'P' and (d == N + W or d == N + E) and q == '.' and to ~= self.ep and to ~= self.kp then
+                break
+            end
+            if p == 'P' and (d == N or d == 2 * N) and q ~= '.' then
+                break
+            end
+            if p == 'P' and d == 2 * N and (from < A1 + N or charAt(self.board, from + N + 1) ~= '.') then
+                break
+            end
+            -- Move it
+            table.insert(moves, { from, to })
+            -- Stop crawlers from sliding
+            if p == 'P' or p == 'N' or p == 'K' then break end
+            -- No sliding after captures
+            if islower(q) then break end
+        end
+    end
+end
+
 function Position:genMoves()
     local moves = {}
     -- For each of our pieces, iterate through each possible 'ray' of moves,
     -- as defined in the 'directions' map. The rays are broken e.g. by
     -- captures or immediately in case of pieces such as knights.
-    for i = 0, #self.board - 1 do
-        local p = self.board:sub(i + 1, i + 1)
+    for from = 0, #self.board - 1 do
+        local p = charAt(self.board, from + 1)
         if isupper(p) and directions[p] then
-            for _, d in ipairs(directions[p]) do
-                local limit = (i + d) + (10000) * d -- fake limit
-                for j = i + d, limit, d do
-                    local q = self.board:sub(j + 1, j + 1)
-                    -- Stay inside the board
-                    if isspace(self.board:sub(j + 1, j + 1)) then break; end
-                    -- Castling
-                    if i == A1 and q == 'K' and self.wc[1] then
-                        table.insert(moves, { j, j - 2 })
-                    end
-                    if i == H1 and q == 'K' and self.wc[2] then
-                        table.insert(moves, { j, j + 2 })
-                    end
-                    -- No friendly captures
-                    if isupper(q) then break; end
-                    -- Special pawn stuff
-                    if p == 'P' and (d == N + W or d == N + E) and q == '.' and j ~= self.ep and j ~= self.kp then
-                        break;
-                    end
-                    if p == 'P' and (d == N or d == 2 * N) and q ~= '.' then
-                        break;
-                    end
-                    if p == 'P' and d == 2 * N and (i < A1 + N or self.board:sub(i + N + 1, i + N + 1) ~= '.') then
-                        break;
-                    end
-                    -- Move it
-                    table.insert(moves, { i, j })
-                    -- Stop crawlers from sliding
-                    if p == 'P' or p == 'N' or p == 'K' then break; end
-                    -- No sliding after captures
-                    if islower(q) then break; end
-                end
-            end
+            self:addMovesForPiece(p, from, moves)
         end
     end
     return moves
@@ -164,7 +173,7 @@ end
 function Position:move(move)
     assert(move) -- move is zero-indexed
     local i, j = move[1], move[2]
-    local p, q = self.board:sub(i + 1, i + 1), self.board:sub(j + 1, j + 1)
+    local p, q = charAt(self.board, i + 1), charAt(self.board, j + 1)
     local function put(board, i, p)
         return board:sub(1, i - 1) .. p .. board:sub(i + 1)
     end
@@ -173,7 +182,7 @@ function Position:move(move)
     local board = self.board
     local wc, bc, ep, kp = self.wc, self.bc, 0, 0
     -- Actual move
-    board = put(board, j + 1, board:sub(i + 1, i + 1))
+    board = put(board, j + 1, charAt(board, i + 1))
     board = put(board, i + 1, '.')
     -- Castling rights
     if i == A1 then wc = { false, wc[1] }; end
@@ -207,20 +216,16 @@ end
 
 function Position:takesKing(move)
     local j = move[2]
-    local q = self.board:sub(j + 1, j + 1)
-    if q == 'k' then
-        return true
-    end
+    local q = charAt(self.board, j + 1)
+    if q == 'k' then return true end
     -- Castling check detection
-    if math.abs(j - self.kp) < 2 then
-        return true
-    end
+    if math.abs(j - self.kp) < 2 then return true end
     return false
 end
 
 local function parse(c)
     if not c then return nil end
-    local p, v = c:sub(1, 1), c:sub(2, 2)
+    local p, v = charAt(c, 1), charAt(c, 2)
     if not (p and v and tonumber(v)) then return nil end
     local fil, rank = string.byte(p) - string.byte('a'), tonumber(v) - 1
     return A1 + fil - 10 * rank
@@ -273,14 +278,14 @@ end
 
 function sunfish:isWhitePiece(squareText)
     local square = parse(squareText) + 1
-    local pieceLetter = self.pos.board:sub(square, square)
+    local pieceLetter = charAt(self.pos.board, square)
     return pieceLetter == string.upper(pieceLetter)
 end
 
 function sunfish:reverseMove(e)
     local rows = { 8, 7, 6, 5, 4, 3, 2, 1 }
     local cols = { a = "h", b = "g", c = "f", d = "e", e = "d", f = "c", g = "b", h = "a" }
-    local reverseRow = function(square) return cols[square:sub(1, 1)] .. rows[tonumber(square:sub(2, 2))] end
+    local reverseRow = function(square) return cols[charAt(square, 1)] .. rows[tonumber(charAt(square, 2))] end
     return { from = reverseRow(e.from), to = reverseRow(e.to) }
 end
 
