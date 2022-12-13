@@ -48,3 +48,7 @@ function love.mousefocus(f)
         messagebus:publish("mouseenter")
     end
 end
+
+local unittest = require('unittest')
+local errors = unittest:run()
+print("errors = " .. errors)

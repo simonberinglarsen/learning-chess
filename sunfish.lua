@@ -267,7 +267,6 @@ function sunfish:getFen()
     castleConfig = castleConfig == "" and "-" or castleConfig
     local enPassant = self:squareIndexToName(pos.ep)
     local fen = board .. " " .. activeColor .. " " .. castleConfig .. " " .. enPassant .. " 0 1"
-    print(fen)
     return fen
 end
 
@@ -300,6 +299,14 @@ function sunfish:doMove(move)
 end
 
 function sunfish:legalMovesForPiece(from)
+    local isWhitePieceMoved = self:isWhitePiece(from)
+    if isWhitePieceMoved ~= self.isWhiteActive then
+        return {}
+    end
+    if not isWhitePieceMoved then
+        from = self:reverseMove({ from = from, to = from }).from
+        self.pos = self.pos:rotate()
+    end
     local square = parse(from)
     local allMoves = self.pos:genLegalMoves()
     local pieceMoves = {}
@@ -307,10 +314,17 @@ function sunfish:legalMovesForPiece(from)
         local move = allMoves[i]
         if move[1] == square then pieceMoves[#pieceMoves + 1] = move end
     end
+    if not isWhitePieceMoved then
+        self.pos = self.pos:rotate()
+        for i, pieceMove in ipairs(pieceMoves) do
+            pieceMoves[i] = { 119 - pieceMove[1], 119 - pieceMove[2] }
+        end
+    end
     return pieceMoves
 end
 
 function sunfish:chessmove(e)
+    --print(e.from .. e.to)
     local isWhitePieceMoved = self:isWhitePiece(e.from)
     if isWhitePieceMoved ~= self.isWhiteActive then
         return false
@@ -328,6 +342,11 @@ function sunfish:chessmove(e)
     return true
 end
 
-sunfish.pos = Position:new(initial, { true, true }, { true, true }, 0, 0)
+function sunfish:reset()
+    self.pos = Position:new(initial, { true, true }, { true, true }, 0, 0)
+end
+
+sunfish:reset()
+
 
 return sunfish

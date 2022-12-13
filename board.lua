@@ -204,6 +204,8 @@ function board:mousemove(e)
     if outOfBounds then
         self:deselectPiece(piece)
         self:setOriginalPiecePosition(piece)
+        piece.scaleX = 1
+        piece.scaleY = 1
     else
         piece.x = e.x
         piece.y = e.y
