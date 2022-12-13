@@ -38,11 +38,7 @@ local directions = {
 -- Chess logic
 -------------------------------------------------------------------------------
 local function isspace(s)
-    if s == ' ' or s == '\n' then
-        return true
-    else
-        return false
-    end
+    return s == ' ' or s == '\n'
 end
 
 local special = '. \n'
