@@ -5,8 +5,13 @@ local display = require('display')
 local colors = require('colors')
 local board = {}
 
-local squareSize = 70
+local boardSize = 100
+
+-- calculated variables
+local squareSize = boardSize / 8
 local pieceSpriteSize = 60
+local pieceSize = squareSize * 0.857
+local pieceScale = pieceSize / pieceSpriteSize
 
 function board:new(g)
     local o = {}
@@ -71,7 +76,7 @@ function board:setPosition(fen)
 end
 
 function board:newSelectionIndicator()
-    local circ = display.newCirc(self.piecesView, 0, 0, pieceSpriteSize)
+    local circ = display.newCirc(self.piecesView, 0, 0, pieceSize)
     circ.fill = { 0, 0, 0, 0.25 }
     circ.isVisible = false
     self.selectionIndicator = circ
@@ -102,7 +107,7 @@ function board:newStateFromFen(fen)
 end
 
 function board:newActiveColorIndicator(fenWord)
-    local c = display.newCirc(self.piecesView, squareSize * 8.5, squareSize / 2, pieceSpriteSize / 4)
+    local c = display.newCirc(self.piecesView, squareSize * 8.5, squareSize / 2, pieceSize / 4)
     if fenWord == "w" then
         c.fill = colors.lightSquare
         c.y = c.y + squareSize * 7
@@ -136,6 +141,8 @@ function board:newPiece(ch, file, rank)
         spriteY * pieceSpriteSize, pieceSpriteSize, pieceSpriteSize)
     self.pieces[#self.pieces + 1] = piece
     piece.squareIndex = file + rank * 8 + 1
+    piece.scaleX = pieceScale
+    piece.scaleY = pieceScale
     self:setOriginalPiecePosition(piece)
 end
 
@@ -204,13 +211,13 @@ function board:mousemove(e)
     if outOfBounds then
         self:deselectPiece(piece)
         self:setOriginalPiecePosition(piece)
-        piece.scaleX = 1
-        piece.scaleY = 1
+        piece.scaleX = pieceScale
+        piece.scaleY = pieceScale
     else
         piece.x = e.x
         piece.y = e.y
-        piece.scaleX = 1.5
-        piece.scaleY = 1.5
+        piece.scaleX = pieceScale * 1.5
+        piece.scaleY = pieceScale * 1.5
         display.toFront(piece)
         self:updateSelectionPos(piece)
     end
