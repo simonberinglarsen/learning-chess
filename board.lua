@@ -58,7 +58,7 @@ end
 
 function board:newTargetIndicator(g, x, y, s)
     local circ = display.newCirc(g, x + 0.5 * squareSize, y + 0.5 * squareSize, squareSize / 6)
-    col = colors.darkerSquare
+    local col = colors.darkerSquare
     circ.fill = { col[1], col[2], col[3], 0.75 }
     circ.isVisible = false
     circ.tag = s.name
