@@ -53,7 +53,7 @@ function board:newSquareRect(g, x, y, col)
     local r = display.newRect(g, x, y, squareSize, squareSize)
     r.anchorX = 0
     r.anchorY = 0
-    r.fill = { col[1], col[2], col[3] }
+    r.fill = { col[1], col[2], col[3], col[4] }
 end
 
 function board:newTargetIndicator(g, x, y, s)

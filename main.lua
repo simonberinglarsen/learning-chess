@@ -49,6 +49,7 @@ function love.mousefocus(f)
     end
 end
 
+-- run unit tests
 local unittest = require('unittest')
 local errors = unittest:run()
 print("errors = " .. errors)
