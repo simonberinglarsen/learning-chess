@@ -45,9 +45,9 @@ local directions = {
 -------------------------------------------------------------------------------
 -- Chess logic
 -------------------------------------------------------------------------------
-local function isWhite(piece) return whitePieces:find(piece, 1, true) end
+local function isWhite(piece) return whitePieces:find(piece, 1, true) and true or false end
 
-local function isBlack(piece) return blackPieces:find(piece, 1, true) end
+local function isBlack(piece) return blackPieces:find(piece, 1, true) and true or false end
 
 local function pieceAt(board, i) return board:sub(i, i) end
 
@@ -263,46 +263,52 @@ function sunfish:doMove(move)
 end
 
 function sunfish:legalMovesForPiece(from)
-    local isWhitePieceMoved = self:isWhitePiece(from)
-    if isWhitePieceMoved ~= self.isWhiteActive then
-        return {}
-    end
-    if not isWhitePieceMoved then
-        from = self:reverseMove({ from = from, to = from }).from
+    local pieceMoves = {}
+    local dest = parse(from)
+    local rotateInput = function()
+        dest = 121 - dest
         self.pos = self.pos:rotate()
     end
-    local square = parse(from)
-    local allMoves = self.pos:generateMoves()
-    local pieceMoves = {}
-    for i = 1, #allMoves do
-        local move = allMoves[i]
-        if move[1] == square then pieceMoves[#pieceMoves + 1] = move end
-    end
-    if not isWhitePieceMoved then
+    local rotateOutput = function()
         self.pos = self.pos:rotate()
         for i, pieceMove in ipairs(pieceMoves) do
             pieceMoves[i] = { 121 - pieceMove[1], 121 - pieceMove[2] }
         end
     end
+    if not self.isWhiteActive then rotateInput() end
+    local p = pieceAt(self.pos.board, dest)
+    if isWhite(p) then
+        for _, move in ipairs(self.pos:generateMoves()) do
+            if move[1] == dest then pieceMoves[#pieceMoves + 1] = move end
+        end
+    end
+    if not self.isWhiteActive then rotateOutput() end
     return pieceMoves
 end
 
 function sunfish:chessmove(e)
-    --print(e.from .. e.to)
-    local isWhitePieceMoved = self:isWhitePiece(e.from)
-    if isWhitePieceMoved ~= self.isWhiteActive then
-        return false
-    end
-    if not isWhitePieceMoved then
-        e = self:reverseMove(e)
+    local move = { parse(e:sub(1, 2)), parse(e:sub(3, 4)) }
+    local rotateInput = function()
+        move = { 121 - move[1], 121 - move[2] }
         self.pos = self.pos:rotate()
     end
-    local move = { parse(e.from), parse(e.to) }
-    if move[1] and move[2] and findMoveInList(self.pos:generateMoves(), { move[1], move[2] }) then
-        self.pos = self:doMove(move)
+    local rotateOutput = function()
+        self.pos = self.pos:rotate()
+    end
+    local setOtherPlayerAsActive = function()
         self.isWhiteActive = not self.isWhiteActive
     end
-    if not isWhitePieceMoved then self.pos = self.pos:rotate() end
+    local tryMove = function()
+        if move[1] and move[2] and findMoveInList(self.pos:generateMoves(), move) then
+            self.pos = self:doMove(move)
+            return true
+        end
+        return false
+    end
+    if not self.isWhiteActive then rotateInput() end
+    local legalMove = tryMove()
+    if not self.isWhiteActive then rotateOutput() end
+    if legalMove then setOtherPlayerAsActive() end
     return true
 end
 

@@ -122,7 +122,7 @@ function display.renderCirc(e)
     local color = e.fill
     display.setColor(color)
     local pos = display.getAnchorPos(e)
-    love.graphics.circle("fill", pos.x, pos.y, e.w, e.segments)
+    love.graphics.circle("fill", pos.x, pos.y, e.w * e.scaleX, e.segments)
 end
 
 function display.renderImage(e)

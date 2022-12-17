@@ -165,7 +165,7 @@ end
 function board:tryMove(piece)
     local from = squares:getByIndex(piece.squareIndex).name
     local to = squares:getByIndex(math.floor(piece.x / squareSize) + math.floor(piece.y / squareSize) * 8 + 1).name
-    sunfish:chessmove({ from = from, to = to })
+    sunfish:chessmove(from .. to)
     self:setPosition(sunfish:getFen())
 end
 
@@ -196,6 +196,13 @@ function board:changePieceSelection(piece, selected)
     for _, squareName in ipairs(self:getTargetSquares(piece)) do
         local rect = self:getSquareRect(squareName)
         rect.isVisible = selected
+        local piece = self:getPieceBySquareIndex(squares:getByName(squareName).index)
+        if piece then
+            rect.scaleX = 3
+        else
+            rect.scaleX = 1
+        end
+
     end
 end
 
@@ -223,15 +230,21 @@ function board:mousemove(e)
     end
 end
 
+function board:getPieceBySquareIndex(squareIndex)
+    for _, piece in ipairs(self.pieces) do
+        if piece.squareIndex == squareIndex then
+            return piece
+        end
+    end
+    return nil
+end
+
 function board:mousepressed(e)
     local rank = math.floor(e.y / squareSize)
     local file = math.floor(e.x / squareSize)
     local squareIndex = rank * 8 + file + 1
-    for _, piece in ipairs(self.pieces) do
-        if piece.squareIndex == squareIndex then
-            self:selectPiece(piece)
-        end
-    end
+    local piece = self:getPieceBySquareIndex(squareIndex)
+    if piece then self:selectPiece(piece) end
 end
 
 function board:getSelectedPiece()

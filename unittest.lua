@@ -9,7 +9,7 @@ function unittest:generateUnittests()
     for _, move in ipairs(game) do
         local from = move:sub(1, 2)
         local to   = move:sub(3, 4)
-        sunfish:chessmove({ from = from, to = to })
+        sunfish:chessmove(from .. to)
         print("{")
         print('move = "' .. move .. '", legalMoves = {')
 
@@ -35,7 +35,7 @@ function unittest:testLegaMovesForPiece()
         local legalMoves = test.legalMoves
         local from = move:sub(1, 2)
         local to = move:sub(3, 4)
-        sunfish:chessmove({ from = from, to = to })
+        sunfish:chessmove(from .. to)
         for _, square in ipairs(squares:getAll()) do
             local moves = sunfish:legalMovesForPiece(square.name)
             if #moves > 0 then
