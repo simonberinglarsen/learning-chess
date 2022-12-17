@@ -17,7 +17,7 @@ function unittest:generateUnittests()
             local moves = sunfish:legalMovesForPiece(square.name)
             if #moves > 0 then
                 for _, move in ipairs(moves) do
-                    print('"' .. sunfish:squareIndexToName(move[1]) .. sunfish:squareIndexToName(move[2]) .. '",')
+                    print('"' .. sunfish:squareIndexToName(move[1] - 1) .. sunfish:squareIndexToName(move[2] - 1) .. '",')
                 end
             end
         end
@@ -40,7 +40,7 @@ function unittest:testLegaMovesForPiece()
             local moves = sunfish:legalMovesForPiece(square.name)
             if #moves > 0 then
                 for _, move in ipairs(moves) do
-                    local moveString = sunfish:squareIndexToName(move[1]) .. sunfish:squareIndexToName(move[2])
+                    local moveString = sunfish:squareIndexToName(move[1] - 1) .. sunfish:squareIndexToName(move[2] - 1)
                     if moveString ~= legalMoves[i] then
                         errors[#errors + 1] = "ERROR!"
                     end

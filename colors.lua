@@ -1,4 +1,4 @@
-local alpha = 0.1
+local alpha = 1
 local colors = {
     darkSquare = { 8 / 15, 10 / 15, 6 / 15, alpha },
     darkerSquare = { 6 / 15, 8 / 15, 4 / 15, alpha },

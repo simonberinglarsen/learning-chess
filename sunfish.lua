@@ -6,25 +6,33 @@ local sunfish = {
 
 -- Our board is represented as a 120 character string. The padding allows for
 -- fast detection of moves that don't stay within the board.
-local A1, H1, A8, H8 = 91, 98, 21, 28
+local whitePieces = "RNBQKP"
+local blackPieces = "rnbqkp"
+local swapCaseMap = {
+    r = "R", n = "N", b = "B", q = "Q", k = "K", p = "P",
+    R = "r", N = "n", B = "b", Q = "q", K = "k", P = "p",
+    ["."] = ".", [" "] = " ", ["\n"] = "\n",
+}
 local initial =
-'         \n' .. --   0 -  9
-    '         \n' .. --  10 - 19
-    ' rnbqkbnr\n' .. --  20 - 29
-    ' pppppppp\n' .. --  30 - 39
-    ' ........\n' .. --  40 - 49
-    ' ........\n' .. --  50 - 59
-    ' ........\n' .. --  60 - 69
-    ' ........\n' .. --  70 - 79
-    ' PPPPPPPP\n' .. --  80 - 89
-    ' RNBQKBNR\n' .. --  90 - 99
-    '         \n' .. -- 100 -109
-    '          ' -- 110 -119
+'         \n' .. ------   1 -  10
+    '         \n' .. --  11 -  20
+    ' rnbqkbnr\n' .. --  21 -  30
+    ' pppppppp\n' .. --  31 -  40
+    ' ........\n' .. --  41 -  50
+    ' ........\n' .. --  51 -  60
+    ' ........\n' .. --  61 -  70
+    ' ........\n' .. --  71 -  80
+    ' PPPPPPPP\n' .. --  81 -  90
+    ' RNBQKBNR\n' .. --  91 - 100
+    '         \n' .. -- 101 - 110
+    '          ' ------ 111 - 120
 
 -------------------------------------------------------------------------------
 -- Move and evaluation tables
 -------------------------------------------------------------------------------
 local N, E, S, W = -10, 1, 10, -1
+local A1, H1, A8, H8 = 92, 99, 22, 29
+local A2 = A1 + N
 local directions = {
     P = { N, 2 * N, N + W, N + E },
     N = { 2 * N + E, N + 2 * E, S + 2 * E, 2 * S + E, 2 * S + W, S + 2 * W, N + 2 * W, 2 * N + W },
@@ -37,38 +45,17 @@ local directions = {
 -------------------------------------------------------------------------------
 -- Chess logic
 -------------------------------------------------------------------------------
-local special = '. \n'
+local function isWhite(piece) return whitePieces:find(piece, 1, true) end
 
-local function isspace(s)
-    return s == ' ' or s == '\n'
-end
+local function isBlack(piece) return blackPieces:find(piece, 1, true) end
 
-local function isupper(s)
-    if special:find(s) then return false end
-    return s:upper() == s
-end
+local function pieceAt(board, i) return board:sub(i, i) end
 
-local function islower(s)
-    if special:find(s) then return false end
-    return s:lower() == s
-end
+local function replaceAt(s, i, p) return s:sub(1, i - 1) .. p .. s:sub(i + 1) end
 
-local function charAt(str, i)
-    return str:sub(i, i)
-end
-
--- super inefficient
 local function swapcase(s)
-    local s2 = ''
-    for i = 1, #s do
-        local c = charAt(s, i)
-        if islower(c) then
-            s2 = s2 .. c:upper()
-        else
-            s2 = s2 .. c:lower()
-        end
-    end
-    return s2
+    for i = 1, #s do s = replaceAt(s, i, swapCaseMap[s:sub(i, i)]) end
+    return s
 end
 
 local Position = {}
@@ -92,98 +79,81 @@ function Position:new(board, wc, bc, ep, kp)
     return o
 end
 
-function Position:addMovesForPiece(p, from, moves)
-    for _, d in ipairs(directions[p]) do
-        local to = from
+function Position:addMovesForPiece(p, src, moves, allowPseudoMoves)
+    local isKnight, isKing, isPawn = p == 'N', p == 'K', p == 'P'
+    local dest, targetPiece
+    local outsideBoard = function() return (dest < A8 or dest > H1) or dest % 10 < 2 end
+    local addMove = function(move)
+        if allowPseudoMoves or self:isLegal(move) then
+            moves[#moves + 1] = move
+        end
+    end
+    local invalidPawnMove = function(d)
+        if not isPawn then return false end
+        if (d == N + W or d == N + E) and targetPiece == '.' and dest ~= self.ep and dest ~= self.kp then return true end
+        if (d == N * 2 or d == N) and targetPiece ~= '.' then return true end
+        if d == N * 2 and (src < A2 or pieceAt(self.board, src + N) ~= '.') then return true end
+        return false
+    end
+    local friendlyCapture = function(t) return isWhite(t) end
+    local castles = function()
+        if src == A1 and targetPiece == 'K' and self.wc[1] then addMove({ dest, dest - 2 }) return true end
+        if src == H1 and targetPiece == 'K' and self.wc[2] then addMove({ dest, dest + 2 }) return true end
+        return false
+    end
+    local slidingPiece = function() return not (isPawn or isKnight or isKing) end
+    local isCapture = function() return isBlack(targetPiece) end
+    for _, direction in ipairs(directions[p]) do
+        dest = src
         while true do
-            to = to + d
-            local q = charAt(self.board, to + 1)
-            -- Stay inside the board
-            if isspace(charAt(self.board, to + 1)) then break end
-            -- Castling
-            if from == A1 and q == 'K' and self.wc[1] then
-                table.insert(moves, { to, to - 2 })
-            end
-            if from == H1 and q == 'K' and self.wc[2] then
-                table.insert(moves, { to, to + 2 })
-            end
-            -- No friendly captures
-            if isupper(q) then break end
-            -- Special pawn stuff
-            if p == 'P' and (d == N + W or d == N + E) and q == '.' and to ~= self.ep and to ~= self.kp then
-                break
-            end
-            if p == 'P' and (d == N or d == 2 * N) and q ~= '.' then
-                break
-            end
-            if p == 'P' and d == 2 * N and (from < A1 + N or charAt(self.board, from + N + 1) ~= '.') then
-                break
-            end
-            -- Move it
-            table.insert(moves, { from, to })
-            -- Stop crawlers from sliding
-            if p == 'P' or p == 'N' or p == 'K' then break end
-            -- No sliding after captures
-            if islower(q) then break end
+            dest = dest + direction
+            targetPiece = pieceAt(self.board, dest)
+            if outsideBoard() then break end
+            if castles() then break end
+            if friendlyCapture(targetPiece) then break end
+            if invalidPawnMove(direction) then break end
+            addMove({ src, dest })
+            if not slidingPiece() then break end
+            if isCapture() then break end
         end
     end
 end
 
-function Position:genMoves()
+function Position:isLegal(move)
+    local pos = self:move(move)
+    local moves = pos:generateMoves(true)
+    for _, move in ipairs(moves) do
+        if pos:takesKing(move) then return false end
+    end
+    return true
+end
+
+function Position:generateMoves(allowPseudoMoves)
     local moves = {}
-    -- For each of our pieces, iterate through each possible 'ray' of moves,
-    -- as defined in the 'directions' map. The rays are broken e.g. by
-    -- captures or immediately in case of pieces such as knights.
-    for from = 0, #self.board - 1 do
-        local p = charAt(self.board, from + 1)
-        if isupper(p) and directions[p] then
-            self:addMovesForPiece(p, from, moves)
+    for from = 1, #self.board do
+        local p = pieceAt(self.board, from)
+        if isWhite(p) and directions[p] then
+            self:addMovesForPiece(p, from, moves, allowPseudoMoves)
         end
     end
     return moves
 end
 
-function Position:isLegal(move)
-    local pos = self:move(move)
-    local moves = pos:genMoves()
-    for i = 1, #moves do
-        if pos:takesKing(moves[i]) then
-            return false
-        end
-    end
-    return true
-end
-
-function Position:genLegalMoves()
-    local moves = self:genMoves()
-    local legalMoves = {}
-    for i = 1, #moves do
-        local move = moves[i]
-        if self:isLegal(move) then
-            legalMoves[#legalMoves + 1] = move
-        end
-    end
-    return legalMoves
-end
-
 function Position:rotate()
-    return Position:new(swapcase(self.board:reverse()), self.bc, self.wc, 119 - self.ep, 119 - self.kp)
+    return Position:new(swapcase(self.board:reverse()), self.bc, self.wc, 121 - self.ep, 121 - self.kp)
 end
 
 function Position:move(move)
     assert(move) -- move is zero-indexed
     local i, j = move[1], move[2]
-    local p, q = charAt(self.board, i + 1), charAt(self.board, j + 1)
-    local function put(board, i, p)
-        return board:sub(1, i - 1) .. p .. board:sub(i + 1)
-    end
+    local p, q = pieceAt(self.board, i), pieceAt(self.board, j)
 
     -- Copy variables and reset ep and kp
     local board = self.board
-    local wc, bc, ep, kp = self.wc, self.bc, 0, 0
+    local wc, bc, ep, kp = self.wc, self.bc, 1, 1
     -- Actual move
-    board = put(board, j + 1, charAt(board, i + 1))
-    board = put(board, i + 1, '.')
+    board = replaceAt(board, j, pieceAt(board, i))
+    board = replaceAt(board, i, '.')
     -- Castling rights
     if i == A1 then wc = { false, wc[1] }; end
     if i == H1 then wc = { wc[1], false }; end
@@ -194,21 +164,15 @@ function Position:move(move)
         wc = { false, false }
         if math.abs(j - i) == 2 then
             kp = math.floor((i + j) / 2)
-            board = put(board, j < i and A1 + 1 or H1 + 1, '.')
-            board = put(board, kp + 1, 'R')
+            board = replaceAt(board, j < i and A1 or H1, '.')
+            board = replaceAt(board, kp, 'R')
         end
     end
     -- Special pawn stuff
     if p == 'P' then
-        if A8 <= j and j <= H8 then
-            board = put(board, j + 1, 'Q')
-        end
-        if j - i == 2 * N then
-            ep = i + N
-        end
-        if ((j - i) == N + W or (j - i) == N + E) and q == '.' then
-            board = put(board, j + S + 1, '.')
-        end
+        if A8 <= j and j <= H8 then board = replaceAt(board, j, 'Q') end
+        if j - i == 2 * N then ep = i + N end
+        if ((j - i) == N + W or (j - i) == N + E) and q == '.' then board = replaceAt(board, j + S, '.') end
     end
     -- We rotate the returned position, so it's ready for the next player
     return Position:new(board, wc, bc, ep, kp):rotate()
@@ -216,19 +180,19 @@ end
 
 function Position:takesKing(move)
     local j = move[2]
-    local q = charAt(self.board, j + 1)
+    local q = pieceAt(self.board, j)
     if q == 'k' then return true end
     -- Castling check detection
-    if math.abs(j - self.kp) < 2 then return true end
+    if j == self.kp then return true end
     return false
 end
 
 local function parse(c)
     if not c then return nil end
-    local p, v = charAt(c, 1), charAt(c, 2)
+    local p, v = c:sub(1, 1), c:sub(2, 2)
     if not (p and v and tonumber(v)) then return nil end
-    local fil, rank = string.byte(p) - string.byte('a'), tonumber(v) - 1
-    return A1 + fil - 10 * rank
+    local fil, rank = string.byte(p) - string.byte('a'), tonumber(v)
+    return A1 + fil - 10 * (rank - 1)
 end
 
 local function findMoveInList(t, k)
@@ -276,15 +240,15 @@ function sunfish:emptySquares(board)
 end
 
 function sunfish:isWhitePiece(squareText)
-    local square = parse(squareText) + 1
-    local pieceLetter = charAt(self.pos.board, square)
+    local square = parse(squareText)
+    local pieceLetter = pieceAt(self.pos.board, square)
     return pieceLetter == string.upper(pieceLetter)
 end
 
 function sunfish:reverseMove(e)
     local rows = { 8, 7, 6, 5, 4, 3, 2, 1 }
     local cols = { a = "h", b = "g", c = "f", d = "e", e = "d", f = "c", g = "b", h = "a" }
-    local reverseRow = function(square) return cols[charAt(square, 1)] .. rows[tonumber(charAt(square, 2))] end
+    local reverseRow = function(square) return cols[pieceAt(square, 1)] .. rows[tonumber(pieceAt(square, 2))] end
     return { from = reverseRow(e.from), to = reverseRow(e.to) }
 end
 
@@ -308,7 +272,7 @@ function sunfish:legalMovesForPiece(from)
         self.pos = self.pos:rotate()
     end
     local square = parse(from)
-    local allMoves = self.pos:genLegalMoves()
+    local allMoves = self.pos:generateMoves()
     local pieceMoves = {}
     for i = 1, #allMoves do
         local move = allMoves[i]
@@ -317,7 +281,7 @@ function sunfish:legalMovesForPiece(from)
     if not isWhitePieceMoved then
         self.pos = self.pos:rotate()
         for i, pieceMove in ipairs(pieceMoves) do
-            pieceMoves[i] = { 119 - pieceMove[1], 119 - pieceMove[2] }
+            pieceMoves[i] = { 121 - pieceMove[1], 121 - pieceMove[2] }
         end
     end
     return pieceMoves
@@ -334,7 +298,7 @@ function sunfish:chessmove(e)
         self.pos = self.pos:rotate()
     end
     local move = { parse(e.from), parse(e.to) }
-    if move[1] and move[2] and findMoveInList(self.pos:genLegalMoves(), move) then
+    if move[1] and move[2] and findMoveInList(self.pos:generateMoves(), { move[1], move[2] }) then
         self.pos = self:doMove(move)
         self.isWhiteActive = not self.isWhiteActive
     end

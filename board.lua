@@ -5,7 +5,7 @@ local display = require('display')
 local colors = require('colors')
 local board = {}
 
-local boardSize = 100
+local boardSize = 600
 
 -- calculated variables
 local squareSize = boardSize / 8
@@ -173,7 +173,7 @@ function board:getTargetSquares(piece)
     local squareNames = {}
     local squareName = squares:getByIndex(piece.squareIndex).name
     for _, move in ipairs(sunfish:legalMovesForPiece(squareName)) do
-        squareNames[#squareNames + 1] = sunfish:squareIndexToName(move[2])
+        squareNames[#squareNames + 1] = sunfish:squareIndexToName(move[2] - 1)
     end
     return squareNames
 end
