@@ -1,6 +1,6 @@
 local squares = require('squares')
 local messagebus = require('messagebus')
-local sunfish = require('sunfish')
+local chessgame = require('chessgame')
 local display = require('display')
 local colors = require('colors')
 local board = {}
@@ -165,15 +165,15 @@ end
 function board:tryMove(piece)
     local from = squares:getByIndex(piece.squareIndex).name
     local to = squares:getByIndex(math.floor(piece.x / squareSize) + math.floor(piece.y / squareSize) * 8 + 1).name
-    sunfish:chessmove(from .. to)
-    self:setPosition(sunfish:getFen())
+    chessgame:chessmove(from .. to)
+    self:setPosition(chessgame:getFen())
 end
 
 function board:getTargetSquares(piece)
     local squareNames = {}
     local squareName = squares:getByIndex(piece.squareIndex).name
-    for _, move in ipairs(sunfish:legalMovesForPiece(squareName)) do
-        squareNames[#squareNames + 1] = sunfish:squareIndexToName(move[2] - 1)
+    for _, move in ipairs(chessgame:legalMovesForPiece(squareName)) do
+        squareNames[#squareNames + 1] = chessgame:squareIndexToName(move[2] - 1)
     end
     return squareNames
 end
